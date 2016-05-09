@@ -1,2 +1,8 @@
 # NSERP_DB
-Creating the final elk location database for the NSERP project
+## Creating final elk location database for NSERP project
+
+Basic Steps
+- [ ] Format raw data from 3300 collars
+- [ ] Format raw data from Iridium collars
+- [ ] Read in collar deployment data (to incl. AnimalID and gender)
+- [ ] Combine all pertinent data into final database
