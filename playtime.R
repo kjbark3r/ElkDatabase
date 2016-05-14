@@ -111,30 +111,73 @@ cap14 <- arrange(cap14, DeviceID)
 cap15 <- arrange(cap15, DeviceID)
 
 #just because i'm paranoid about screwing up real data
+#change test to alllocs for real version
 test <- subset(alllocs, select = -DateTime)
 
 #..AAAAAAND THE PITCH!
-#currently keeps rewriting over the data each time
-#need to save per indiv
+#fuuuck yeah, this works
+#because i'm a super genius
+#but it would be best to store all in one df
+newdf <- data.frame(matrix(ncol = 9, nrow = 0)) #create df wo NAs
+colnames(newdf) <- c("DeviceID", "AnimalID", "Date", "Time", 
+                       "Lat", "Long", "FixStatus", "DOP", "TempC")
+
 for(i in 1:nrow(collarids)){
   indiv = collarids[i,] 
   id <- subset(test, test$DeviceID == indiv) #for each individual,
-  id$AnimalID <- ifelse(id$Date < "2015-01-23", 
+  id$AnimalID <- ifelse(id$Date < "2015-01-23",  #assign animalid
                           cap14$AnimalID[i], cap15$AnimalID[i])
- # write.csv(id, file="indiv.csv", append=TRUE)
-    }
+  newdf <- bind_rows(newdf, id)
+}
+
 
 #to remove bad pitches...
-rm(test, indiv, i, id, kickass)
-
-#if you need a df to store that stuff in for some reason
-#kickass <- data.frame(matrix(ncol = 9, nrow = 520479))
-#colnames(kickass) <- c("DeviceID", "AnimalID", "Date", "Time", 
-#                       "Lat", "Long", "FixStatus", "DOP", "TempC")
+rm(test, indiv, i, id, locs, newdf, indivname)
 
 
 #######################
 #doesn't work
+
+#below works, but it would be better to store all in one df
+for(i in 1:nrow(collarids)){
+  indiv = collarids[i,] 
+  id <- subset(alllocs, alllocs$DeviceID == indiv) #for each individual,
+  id$AnimalID <- ifelse(id$Date < "2015-01-23",  #assign animalid
+                        cap14$AnimalID[i], cap15$AnimalID[i])
+  indivname <- paste("locs", indiv, sep = "") #create name for df
+  blankdf <- data.frame(matrix(ncol = 9, nrow = nrow(id))) #create df
+  colnames(blankdf) <- c("DeviceID", "AnimalID", "Date", "Time", 
+                         "Lat", "Long", "FixStatus", "DOP", "TempC")
+  blankdf <- id
+  assign(indivname, blankdf) #fill df with indiv data
+}
+
+#close - creates df properly but doesn't store the data in it
+for(i in 1:nrow(collarids)){
+  indiv = collarids[i,] 
+  id <- subset(test, test$DeviceID == indiv) #for each individual,
+  id$AnimalID <- ifelse(id$Date < "2015-01-23",  #assign animalid
+                        cap14$AnimalID[i], cap15$AnimalID[i])
+  indivname <- paste(indiv, "locs", sep = "") #create name for df
+  blankdf <- data.frame(matrix(ncol = 9, nrow = nrow(id))) #create df
+  colnames(blankdf) <- c("DeviceID", "AnimalID", "Date", "Time", 
+                         "Lat", "Long", "FixStatus", "DOP", "TempC")
+  assign(indivname, blankdf) #fill df with indiv data
+}
+for(i in 1:nrow(collarids)){
+  indiv = collarids[i,] 
+  id <- subset(test, test$DeviceID == indiv) #for each individual,
+  id$AnimalID <- ifelse(id$Date < "2015-01-23", 
+                        cap14$AnimalID[i], cap15$AnimalID[i])
+  locs[i] <- id #store ea subset as new df?
+}
+
+#also, same as above but
+locs <- id
+locs <- id[i]
+paste(id, "locs", sep = "")
+write.csv(id, file="indiv.csv", append=TRUE)
+
 test <- subset(alllocs, select = -c(DateTime, AnimalID))
 test <- test %>%
   mutate(AnimalID = ifelse(test$Date[test$Device] < "2015-01-23", 
@@ -167,3 +210,47 @@ indiv <- function(locs, deploy1, deploy2){
 }
 
 alllocs$AnimalID <- indiv(alllocs, cap14, cap15)
+#just kidding i'm not
+
+########
+#remove pre-deployment locations
+##2014 capture start date = 02/26/2014
+##2015 captures start date = 01/24/2015
+
+#step 1: conditional removal of pre-2014 deployment
+newtestdf <- newdf[!(newdf$Date < "2014-02-26"),]
+
+#step 2: remove pre-2015 deployment only for redeploys
+newtestdf <- newtestdf[!(newtestdf$CaptureYr == 2015 & 
+                      newtestdf$Date < "2015-01-24"),]
+
+##don't work
+#doesn't remove any data
+newtestdf <- ifelse(newtestdf$CaptureYr == 2015, 
+                    newtestdf[!(newtestdf$Date < "2015-01-24"),], 
+                    newtestdf)
+
+#freezes r - hangs after first line
+newtestdf <- ifelse(newtestdf$CaptureYr = 2015, 
+                    newtestdf[!(newtestdf$Date < "2015-01-24"),], 
+                    newtestdf)
+
+########
+#remove post-harvest/collar drop locations
+#PRELIMINARY THOUGHTS
+###note probably want to read in these data towards the top of your code
+###with the rest of the read-ins
+##read above code first to use testdf rather than real one
+
+transend <- read.csv("rawdata/transend.csv", as.is=T) #treat dates as chars
+newtestdf <- left_join(newtestdf, transend, by = "AnimalID")
+
+for(i in 1:nrow(collarids)){
+  indiv = collarids[i,] #treat each collarid as an individual
+  id <- subset(newtestdf, newtestdf$DeviceID == indiv) #for each individual,
+
+#ponder the below: need to make datetime column, not treat separately
+  newtestdf <- ifelse(id$Date < id$EndDate & ,  #assign animalid
+                        cap14$AnimalID[i], cap15$AnimalID[i])
+  newdf <- bind_rows(newdf, id) #and add data to master df
+}

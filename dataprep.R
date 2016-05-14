@@ -31,12 +31,47 @@ alllocs <- bind_rows(df140057, df140016, df140007, dfiridium)
   alllocs$Date <- as.Date(alllocs$Date, format = "%m/%d/%Y")
   #alllocs$Time <- strptime(alllocs$Time, format = "%H:%M")  #needs date too
 
-##[possibly unnecessary] CREATE LIST OF ELK 
-collarids <- as.data.frame(unique(alllocs$DeviceID))
-names(collarids)[1] <- "DeviceID"
-ncollars <- nrow(collarids)
+##ADD ANIMAL IDS#########################################################
 
-##ADD ANIMAL IDS
-#See #..AAAAAAND THE PITCH! section of playtime.R
-#You're getting close
-    
+#subset capture data to remove 3300s we don't have data for
+cap14 <- allcap14[ ! allcap14$DeviceID %in% c(2496, 3521),]
+cap15 <- allcap15[ ! allcap15$DeviceID %in% c(2496, 3521),]
+
+#order collarids and capture data by DeviceID to index all the same
+collarids <- arrange(collarids, DeviceID)
+cap14 <- arrange(cap14, DeviceID)
+cap15 <- arrange(cap15, DeviceID)
+
+#create blank df to store results
+newdf <- data.frame(matrix(ncol = 9, nrow = 0)) #create df wo NAs
+colnames(newdf) <- c("DeviceID", "AnimalID", "Date", "Time", 
+                     "Lat", "Long", "FixStatus", "DOP", "TempC")
+
+#have to remove DateTime or else R explodes for some reason :(
+nodatetime <- subset(alllocs, select = -DateTime)
+
+#create list of elk 
+collarids <- as.data.frame(unique(nodatetime$DeviceID))
+names(collarids)[1] <- "DeviceID"
+
+#assign animalid based on device id and capture year
+for(i in 1:nrow(collarids)){
+  indiv = collarids[i,] #treat each collarid as an individual
+  id <- subset(nodatetime, nodatetime$DeviceID == indiv) #for each individual,
+  id$AnimalID <- ifelse(id$Date < "2015-01-23",  #assign animalid
+                        cap14$AnimalID[i], cap15$AnimalID[i])
+  newdf <- bind_rows(newdf, id) #and add data to master df
+}
+
+#add sex and capture year
+newdf <- newdf %>%
+  mutate(Sex = ifelse(between(DeviceID, 34942, 34963), "Male", "Female")) %>%
+  mutate(CaptureYr = ifelse(AnimalID < 149999, 2014, 2015 ))
+
+##REMOVE EXTRANEOUS LOCATIONS####################################
+
+#pre-deployment removal
+newdf <- newdf[!(newdf$Date < "2014-02-26"),]
+newdf <- newdf[!(newdf$CaptureYr == 2015 & newdf$Date < "2015-01-24"),]
+
+#post-mortality or post-collar drop removal
