@@ -22,20 +22,30 @@ df140057 <- read.delim("rawdata/140057-2204.txt", header = TRUE, sep = "\t")
 df140016 <- read.delim("rawdata/140016-3518.txt", header = TRUE, sep = "\t")
 df140007 <- read.delim("rawdata/140007-3529.txt", header = TRUE, sep = "\t")
 dfiridium <- read.delim("rawdata/iridium-all.txt", header = TRUE, sep = "\t")
+  #none above have truncated longitude - just printing shorter. to verify:
+  #print(df140007[4,7], digits=10)
+  #but below ARE truncated >:(
+  #print(allcap14[4,9], digits=10)
+  #leaving it for now because capture long's aren't in final database
 allcap14 <- read.csv("rawdata/capture14.csv")
 allcap15 <- read.csv("rawdata/capture15.csv")
+  #subset capture data to remove 3300s we don't have data for
+  cap14 <- allcap14[ ! allcap14$DeviceID %in% c(2496, 3521),]
+  cap15 <- allcap15[ ! allcap15$DeviceID %in% c(2496, 3521),]
 
 ##SET UP LOCN DATAFRAME
+  #THIS is where longitudes get truncated - WHYYYYYY?
+  #print(alllocs[4,7], digits=10)
+  #may need to use a base r command instead of bind_rows
 alllocs <- bind_rows(df140057, df140016, df140007, dfiridium)
   alllocs$DateTime <- strptime(alllocs$DateTime, format = "%m/%d/%Y  %H:%M")
   alllocs$Date <- as.Date(alllocs$Date, format = "%m/%d/%Y")
   #alllocs$Time <- strptime(alllocs$Time, format = "%H:%M")  #needs date too
 
-##ADD ANIMAL IDS#########################################################
-
-#subset capture data to remove 3300s we don't have data for
-cap14 <- allcap14[ ! allcap14$DeviceID %in% c(2496, 3521),]
-cap15 <- allcap15[ ! allcap15$DeviceID %in% c(2496, 3521),]
+##CLEAN UP WORKSPACE
+rm(df140057, df140016, df140007, dfiridium, allcap14, allcap15)
+  
+##ADD ANIMAL ID, SEX, CAPTURE YEAR############################
 
 #order collarids and capture data by DeviceID to index all the same
 collarids <- arrange(collarids, DeviceID)

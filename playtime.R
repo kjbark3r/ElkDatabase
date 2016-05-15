@@ -254,3 +254,36 @@ for(i in 1:nrow(collarids)){
                         cap14$AnimalID[i], cap15$AnimalID[i])
   newdf <- bind_rows(newdf, id) #and add data to master df
 }
+
+########
+#MISC SPECIAL CASES
+
+#figuring out how to read in lat/long with more decimal places
+df140007 <- read.csv("rawdata/140007-3529.csv")
+df140007[4,7]
+print(df140007[4,7], digits=10)
+print(allcap14[4,9], digits=10)
+rm(df140007)
+##nope
+df140057 <- read.delim("rawdata/140057-2204.txt", header = TRUE, 
+                       as.is = FALSE, numerals = "no.loss", sep = "\t")
+df140057 <- read.delim("rawdata/140057-2204.txt", header = TRUE, 
+                       as.is = TRUE, numerals = "no.loss", sep = "\t")
+df140057 <- read.delim("rawdata/140057-2204.txt", header = TRUE, 
+                       numerals = "no.loss", sep = "\t")
+df140057 <- read.delim("rawdata/140057-2204.txt", header = TRUE, 
+                       numerals = "allow.loss", sep = "\t")
+df140057 <- read.delim("rawdata/140057-2204.txt", header = TRUE, 
+                       as.is = TRUE, sep = "\t")
+df140057 <- read.delim("rawdata/140057-2204.txt", header = TRUE, 
+                       as.is = FALSE, numerals = "no.loss", sep = "\t")
+df140057[4,7]
+rm(df140057)
+
+#checking out 34908 to see when last location was
+##this is the one GPS stopped working on
+locs34908 <- subset(newdf, DeviceID==34908); View(locs34908)
+
+#34909 - can't zoom far enough in to lotek map to get 1st cluster pt
+locs34909 <- subset(newdf, DeviceID==34909); View(locs34909)
+locs34908.nona <- locs34908[complete.cases(locs34908),]
