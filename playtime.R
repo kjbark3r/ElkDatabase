@@ -2,6 +2,16 @@
 ########playtime###########
 ###########################
 
+##BETTER WD CODE
+wd_workcomp <- "C:\\Users\\kristin.barker\\Documents\\GitHub\\NSERP_DB"
+wd_laptop <- "C:\\Users\\kjbark3r\\Documents\\GitHub\\NSERP_DB"
+if (file.exists(wd_workcomp)){
+  setwd("C:\\Users\\kristin.barker\\Documents\\GitHub\\NSERP_DB\\")
+} else {
+  setwd("C:\\Users\\kjbark3r\\Documents\\GitHub\\NSERP_DB\\")
+}
+rm(wd_workcomp, wd_laptop)
+
 ##############
 ##can you use mutate to append new column based on diff df?
 
@@ -70,8 +80,6 @@ testdf <- iris %>%
 
 mutate(iris, type="hm")
 
-
-
 #################################
 ##ADD ANIMAL IDS TO LOCATION DATA
 
@@ -130,10 +138,8 @@ for(i in 1:nrow(collarids)){
   newdf <- bind_rows(newdf, id)
 }
 
-
 #to remove bad pitches...
 rm(test, indiv, i, id, locs, newdf, indivname)
-
 
 #######################
 #doesn't work
@@ -238,11 +244,6 @@ newtestdf <- ifelse(newtestdf$CaptureYr = 2015,
 ########
 #remove post-harvest/collar drop locations
 #PRELIMINARY THOUGHTS
-###note probably want to read in these data towards the top of your code
-###with the rest of the read-ins
-##read above code first to use testdf rather than real one
-
-transend <- read.csv("rawdata/transend.csv", as.is=T) #treat dates as chars
 newtestdf <- left_join(newtestdf, transend, by = "AnimalID")
 
 for(i in 1:nrow(collarids)){
@@ -250,7 +251,7 @@ for(i in 1:nrow(collarids)){
   id <- subset(newtestdf, newtestdf$DeviceID == indiv) #for each individual,
 
 #ponder the below: need to make datetime column, not treat separately
-  newtestdf <- ifelse(id$Date < id$EndDate & ,  #assign animalid
+  newtestdf <- ifelse(id$DateTime < id$Date & ,  #assign animalid
                         cap14$AnimalID[i], cap15$AnimalID[i])
   newdf <- bind_rows(newdf, id) #and add data to master df
 }
@@ -258,12 +259,49 @@ for(i in 1:nrow(collarids)){
 ########
 #MISC SPECIAL CASES
 
-#figuring out how to read in lat/long with more decimal places
+######
+#DECIMAL PLACES  (currently rounds longitude to 4, dumb)
+
+#1. does it make a difference if I use read.csv vs read.delim? NO
 df140007 <- read.csv("rawdata/140007-3529.csv")
 df140007[4,7]
 print(df140007[4,7], digits=10)
-print(allcap14[4,9], digits=10)
 rm(df140007)
+  #all decimal places included
+df140007 <- read.delim("rawdata/140007-3529.txt", header = TRUE, sep = "\t")
+df140007[4,7]
+print(df140007[4,7], digits=10)
+rm(df140007)
+  #all decimal places included
+  #raw 3300 data are all good
+dfiridium <- read.delim("rawdata/iridium-all.txt", header = TRUE, sep = "\t")
+dfiridium[4,7]
+print(dfiridium[4,7], digits=10)
+rm(dfiridium)
+  #raw iridium good too
+allcap14 <- read.csv("rawdata/capture14.csv")
+allcap14[4,9]
+print(allcap14[14,9], digits=10)
+print(allcap15[14,9], digits=10)
+  #raw capture data good
+print(cap14[14,9], digits=10)
+print(cap15[14,9], digits=10)
+  #subsetted capture data good
+print(transend[14,6], digits=10)
+  #transmission end data good
+print(alllocs[134,7], digits=10)
+  #data after rows bound NOT GOOD, WTF
+
+#2. what's the difference between bound data and raw data?
+str(dfiridium)
+str(alllocs)
+  #actually the below is a way better way to check this
+sapply(dfiridium, class)
+sapply(df140007, class)
+sapply(alllocs, class)
+  #ok, need to make classes the same before binding. 
+alllocs[4,3]
+
 ##nope
 df140057 <- read.delim("rawdata/140057-2204.txt", header = TRUE, 
                        as.is = FALSE, numerals = "no.loss", sep = "\t")
@@ -280,6 +318,23 @@ df140057 <- read.delim("rawdata/140057-2204.txt", header = TRUE,
 df140057[4,7]
 rm(df140057)
 
+############
+#DATE TIME FORMATTING, UGH
+
+#yes
+alllocs$DateTime <- as.POSIXct(alllocs$DateTime, format = "%m/%d/%Y  %H:%M")
+alllocs$Date <- as.POSIXct(alllocs$DateTime, format = "%m/%d/%Y  %H:%M")
+#format(alllocs$Time[j], format="%H:%M:%S")
+format(alllocs$Time, format="%H:%M:%S")
+class(alllocs$Time)
+
+#no
+alllocs$Time <- as.POSIXct(alllocs$Time, format = "%H:%M")  
+  #forces date into same column
+alllocs$Time <- strftime(alllocs$Time, format = "%H:%M")
+  #error
+
+#MORE MISC
 #checking out 34908 to see when last location was
 ##this is the one GPS stopped working on
 locs34908 <- subset(newdf, DeviceID==34908); View(locs34908)
@@ -287,3 +342,51 @@ locs34908 <- subset(newdf, DeviceID==34908); View(locs34908)
 #34909 - can't zoom far enough in to lotek map to get 1st cluster pt
 locs34909 <- subset(newdf, DeviceID==34909); View(locs34909)
 locs34908.nona <- locs34908[complete.cases(locs34908),]
+
+################
+#this section is original animalid for loop 
+#but didn't allow me to keep DateTime
+#and truncated longitude decimal places
+
+#create blank df to store results
+newdf <- data.frame(matrix(ncol = 9, nrow = 0)) #create df wo NAs
+colnames(newdf) <- c("DeviceID", "AnimalID", "Date", "Time", 
+                     "Lat", "Long", "FixStatus", "DOP", "TempC")
+
+#have to remove DateTime or else R explodes for some reason :(
+nodatetime <- subset(alllocs, select = -DateTime)
+
+#create list of elk 
+collarids <- as.data.frame(unique(nodatetime$DeviceID))
+names(collarids)[1] <- "DeviceID"
+
+#assign animalid based on device id and capture year
+for(i in 1:nrow(collarids)){
+  indiv = collarids[i,] #treat each collarid as an individual
+  id <- subset(nodatetime, nodatetime$DeviceID == indiv) #for each individual,
+  id$AnimalID <- ifelse(id$Date < "2015-01-23",  #assign animalid
+                        cap14$AnimalID[i], cap15$AnimalID[i])
+  newdf <- bind_rows(newdf, id) #and add data to master df
+}
+
+#add sex and capture year
+newdf <- newdf %>%
+  mutate(Sex = ifelse(between(DeviceID, 34942, 34963), "Male", "Female")) %>%
+  mutate(CaptureYr = ifelse(AnimalID < 149999, 2014, 2015 ))
+################
+
+
+####CHECK CLASSES AND FORMATTING
+str(dfiridium)
+str(df140057)
+
+print(df140007[240,7], digits=10)
+print(dfiridium[240,7], digits=10)
+print(alllocs[409,7], digits=10)
+print(newdf[409,7], digits=10)
+
+str(alllocs)
+
+##########################
+## NUKE IT ###############
+rm(list=ls())
