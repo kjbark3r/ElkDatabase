@@ -123,9 +123,33 @@ cap15 <- arrange(cap15, DeviceID)
 test <- subset(alllocs, select = -DateTime)
 
 #..AAAAAAND THE PITCH!
-#fuuuck yeah, this works
-#because i'm a super genius
-#but it would be best to store all in one df
+##create list of animalids unique to each capture year
+#need to keep deviceid in these to sort by it
+cap14ids <- as.data.frame(unique(cap14))
+
+cap14ids <- as.data.frame(c(unique(cap14$DeviceID), cap14$AnimalID))
+  names(cap14ids)[1] <- "DeviceID"
+cap15ids <- as.data.frame(unique(cap15$DeviceID))
+  names(cap15ids)[1] <- "DeviceID"
+
+collarids <- arrange(collarids, DeviceID)
+cap14ids <- arrange(cap14ids, DeviceID)
+cap15ids <- arrange(cap15ids, DeviceID)
+
+newdf <- data.frame(matrix(ncol = 10, nrow = 0)) #create df wo NAs
+colnames(newdf) <- c("DeviceID", "AnimalID", "DateTime", "Date", "Time", 
+                     "Lat", "Long", "FixStatus", "DOP", "TempC")
+
+for(i in 1:nrow(collarids)){
+  indiv <- collarids[i,] #treat each collarid as an individual
+  id <- subset(alllocs, alllocs$DeviceID == indiv) #for each individual,
+  id$AnimalID <- ifelse(id$Date < "2015-01-23",  #for locns b4 2015 capture,
+                        cap14ids$AnimalID[i], cap15ids$AnimalID[i]) #animalid=2014
+  newdf <- as.data.frame(bind_rows(newdf, id)) #and add data to master df
+}   
+
+####
+previous attempts
 newdf <- data.frame(matrix(ncol = 9, nrow = 0)) #create df wo NAs
 colnames(newdf) <- c("DeviceID", "AnimalID", "Date", "Time", 
                        "Lat", "Long", "FixStatus", "DOP", "TempC")
@@ -137,6 +161,15 @@ for(i in 1:nrow(collarids)){
                           cap14$AnimalID[i], cap15$AnimalID[i])
   newdf <- bind_rows(newdf, id)
 }
+
+#this was original
+for(i in 1:nrow(collarids)){
+  indiv <- collarids[i,] #treat each collarid as an individual
+  id <- subset(alllocs, alllocs$DeviceID == indiv) #for each individual,
+  id$AnimalID <- ifelse(id$Date < "2015-01-23",  #for locns b4 2015 capture,
+                        cap14$AnimalID[i], cap15$AnimalID[i]) #animalid=2014
+  newdf <- as.data.frame(bind_rows(newdf, id)) #and add data to master df
+}   
 
 #to remove bad pitches...
 rm(test, indiv, i, id, locs, newdf, indivname)
@@ -242,8 +275,9 @@ newtestdf <- ifelse(newtestdf$CaptureYr = 2015,
                     newtestdf)
 
 ########
-#remove post-harvest/collar drop locations
-#PRELIMINARY THOUGHTS
+#REOMVE POST-HARVEST/DROP LOCATIONS
+#
+#preliminary thoughts
 newtestdf <- left_join(newtestdf, transend, by = "AnimalID")
 
 for(i in 1:nrow(collarids)){
@@ -251,10 +285,25 @@ for(i in 1:nrow(collarids)){
   id <- subset(newtestdf, newtestdf$DeviceID == indiv) #for each individual,
 
 #ponder the below: need to make datetime column, not treat separately
-  newtestdf <- ifelse(id$DateTime < id$Date & ,  #assign animalid
+  newtestdf <- ifelse(id$DateTime <- id$Date & ,  #assign animalid
                         cap14$AnimalID[i], cap15$AnimalID[i])
   newdf <- bind_rows(newdf, id) #and add data to master df
 }
+
+#actually don't need per individual, just per location
+##first subset transend: remove deviceid, 
+newtestdf <- newdf
+transend.sub <- subset(transend, select = -DeviceID)
+newtestdf <- left_join(newtestdf, transend.sub, by = "AnimalID")
+elklocs <- newtestdf[!(newtestdf$DateTime >= newtestdf$EndDateTime),]
+
+#don't forget NAs are still included
+elklocs.nona <- elklocs[!is.na(elklocs$Lat),]
+
+#nope
+elklocs.nona <- as.data.frame(na.omit(elklocs$Lat))
+elklocs.nona <- elklocs[!(elklocs$Lat = "NA"),]
+elklocs.nona <- na.omit(elklocs[(elklocs$Lat),])
 
 ########
 #MISC SPECIAL CASES
@@ -343,6 +392,65 @@ locs34908 <- subset(newdf, DeviceID==34908); View(locs34908)
 locs34909 <- subset(newdf, DeviceID==34909); View(locs34909)
 locs34908.nona <- locs34908[complete.cases(locs34908),]
 
+#motherfucking daylight savings
+
+#figuring out and/or operators
+
+(endd <- as.Date("2011-01-02", format = "%Y-%m-%d"))
+(endt <- as.character("03:00"))
+
+rm(fuckthis)
+rm(newfuckthis)
+
+fuckthis <- data.frame(matrix(ncol = 2, nrow = 4))
+colnames(fuckthis) <- c("Date", "Time")
+fuckthis[1,1] <- "2011-01-02"
+fuckthis[1,2] <- as.character("02:00")
+fuckthis[2,1] <- "2011-01-02"
+fuckthis[2,2] <- as.character("04:00")
+fuckthis[3,1] <- "2011-01-04"
+fuckthis[3,2] <- as.character("02:00")
+fuckthis[4,1] <- "2011-01-04"
+fuckthis[4,2] <- as.character("04:00")
+fuckthis$Date <- as.Date(fuckthis$Date, format = "%Y-%m-%d")
+
+newfuckthis <- fuckthis[!(fuckthis$Date >= endd & fuckthis$Time >= endt),]
+newfuckthis <- newfuckthis[!(newfuckthis$Date > endd),]
+  #that works, now can you make it all one line?
+newfuckthis <- fuckthis[!(fuckthis$Date >= endd & fuckthis$Time >= endt
+                        |fuckthis$Date > endd),]
+  #yup
+
+#now apply it to your actual data
+
+endd2 <- as.Date("2015-01-02", format = "%Y-%m-%d")
+endt2 <- as.character("03:00")
+test <- newdf[!(newdf$Date >= endd2 & newdf$Time > endt2),]
+test2 <- newdf[!(newdf$Date > endd2),]
+test3 <- newdf[!(newdf$Date >= endd2 & newdf$Time > endt2
+                 | newdf$Date > endd2),]
+#it works when end date and time are fixed, external entities
+#note don't change those operators or shit fails for some reason
+test4 <- newdf[!(newdf$Date >= newdf$EndDate),]
+
+newdf$EndDate <- as.Date(newdf$EndDate, format = "%m/%d/%Y")
+
+test5 <- newdf[!(newdf$Date >= newdf$EndDate & newdf$Time > newdf$EndTime
+                 | newdf$Date > newdf$EndDate),]
+#make sure it worked
+test5sub <- subset(test5, test5$DeviceID == "34926")
+
+elklocs <- newdf[!(newdf$Date = newdf$EndDate & newdf$Time > newdf$EndTime
+                   |newdf$Date > newdf$EndDate),]
+
+newfuckthis <- fuckthis[!(fuckthis$Date >= endd & fuckthis$Time >= endt),]
+newfuckthis <- newfuckthis[!(newfuckthis$Date > endd),]
+#all together now
+newfuckthis <- fuckthis[!(fuckthis$Date >= endd & fuckthis$Time >= endt
+                          |fuckthis$Date > endd),]
+
+
+
 ################
 #this section is original animalid for loop 
 #but didn't allow me to keep DateTime
@@ -375,6 +483,31 @@ newdf <- newdf %>%
   mutate(CaptureYr = ifelse(AnimalID < 149999, 2014, 2015 ))
 ################
 
+###Why the fuck are some DateTimes reading in as NAs?
+wtf140560 <- df140560[is.na(df140560$DateTime),]
+wtf140910 <- df140910[is.na(df140910$DateTime),]
+wtf141490 <- df141490[is.na(df141490$DateTime),]
+wtfiridium <- dfiridium[is.na(dfiridium$DateTime),]
+#MOTHERFUCKING DAYLIGHT SAVINGS TIME
+
+#force R to use those DateTimes anyway?? Maybe diff format? 
+#they read in OK as factors, but that's not ideal
+
+#does character work?
+df140560$DateTime <- as.character(df140560$DateTime)
+test <- df140560[!(df140560$DateTime >= "02/20/2014 20:00"),] #line80
+#no
+
+#numeric?
+rm(df140560, test)
+df140560 <- read.delim("rawdata/140560-2204.txt", header = TRUE, sep = "\t")
+df140560$DateTime <- as.numeric(df140560$DateTime)
+test <- df140560[!(df140560$DateTime >= "02/20/2014 20:00"),] #line80
+#no. kill me.
+
+##############################
+###GENERALLY HELPFUL STUFF####
+##############################
 
 ####CHECK CLASSES AND FORMATTING
 str(dfiridium)
@@ -386,6 +519,10 @@ print(alllocs[409,7], digits=10)
 print(newdf[409,7], digits=10)
 
 str(alllocs)
+
+sapply(dfiridium, class)
+sapply(df140007, class)
+sapply(alllocs, class)
 
 ##########################
 ## NUKE IT ###############
