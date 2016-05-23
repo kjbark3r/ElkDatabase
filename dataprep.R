@@ -21,29 +21,26 @@ library(tidyr)
 
 #collar locations
 df140560 <- read.delim("rawdata/140560-2204.txt", header = TRUE, sep = "\t")
-  df140560$DateTime <- as.POSIXct(df140560$DateTime, format = "%m/%d/%Y  %H:%M")
   df140560$Date <- as.Date(df140560$Date, format = "%m/%d/%Y")
   df140560$Time <- as.character(df140560$Time)
   df140560$FixStatus <- as.character(df140560$FixStatus)
 df140910 <- read.delim("rawdata/140910-3518.txt", header = TRUE, sep = "\t")
-  df140910$DateTime <- as.POSIXct(df140910$DateTime, format = "%m/%d/%Y  %H:%M")
   df140910$Date <- as.Date(df140910$Date, format = "%m/%d/%Y")
   df140910$Time <- as.character(df140910$Time)
   df140910$FixStatus <- as.character(df140910$FixStatus)
 df141490 <- read.delim("rawdata/141490-3529.txt", header = TRUE, sep = "\t")
-  df141490$DateTime <- as.POSIXct(df141490$DateTime, format = "%m/%d/%Y  %H:%M")
   df141490$Date <- as.Date(df141490$Date, format = "%m/%d/%Y")
   df141490$Time <- as.character(df141490$Time)
   df141490$FixStatus <- as.character(df141490$FixStatus)
 dfiridium <- read.delim("rawdata/iridium-all.txt", header = TRUE, sep = "\t")
   dfiridium$AnimalID <- as.integer(dfiridium$AnimalID)
-  dfiridium$DateTime <- as.POSIXct(dfiridium$DateTime, format = "%m/%d/%Y  %H:%M")
   dfiridium$Date <- as.Date(dfiridium$Date, format = "%m/%d/%Y")
   dfiridium$Time <- as.character(dfiridium$Time)
   dfiridium$TempC <- as.numeric(dfiridium$TempC)
   dfiridium$FixStatus <- as.character(dfiridium$FixStatus)
 alllocs <- as.data.frame(bind_rows(df140560, df140910, df141490, dfiridium))
-  
+  alllocs <- subset(alllocs, select = -DateTime)
+ 
 #capture information
   #remove 3300s we have no data for
   #note these data aren't perfectly classified (eg date/time)
@@ -54,9 +51,8 @@ allcap15 <- read.csv("rawdata/capture15.csv", as.is = TRUE)
 
 ##transmission end information
 transend <- read.csv("rawdata/transend.csv", as.is = TRUE)
-  transend$EndDateTime <- as.POSIXct(paste(transend$EndDate, transend$EndTime), 
-                              format = "%m/%d/%Y  %H:%M")
-  transend <- transend[,c("DeviceID", "AnimalID", "EndDateTime", "EndDate", "EndTime", 
+  transend$EndDate <- as.Date(transend$EndDate, format = "%m/%d/%Y")
+  transend <- transend[,c("DeviceID", "AnimalID", "EndDate", "EndTime", 
                      "EndLat", "EndLong", "StatusFeb16", "EndCause1", "EndCause2")] 
 
 #clean up workspace
@@ -73,10 +69,9 @@ collarids <- arrange(collarids, DeviceID)
 cap14 <- arrange(cap14, DeviceID)
 cap15 <- arrange(cap15, DeviceID)
 
-##########################################  
 #create blank df to store results in
-newdf <- data.frame(matrix(ncol = 10, nrow = 0)) #create df wo NAs
-colnames(newdf) <- c("DeviceID", "AnimalID", "DateTime", "Date", "Time", 
+newdf <- data.frame(matrix(ncol = 9, nrow = 0)) #create df wo NAs
+colnames(newdf) <- c("DeviceID", "AnimalID", "Date", "Time", 
                      "Lat", "Long", "FixStatus", "DOP", "TempC")
 
 #assign animalid based on device id and capture year
@@ -102,6 +97,7 @@ newdf <- newdf[!(newdf$CaptureYr == 2015 & newdf$Date < "2015-01-24"),]
 #post-mortality or post-collar drop removal
 transend.sub <- subset(transend, select = -DeviceID) #remove duplicate column
 newdf <- as.data.frame(left_join(newdf, transend.sub, by = "AnimalID")) #add transend data
+
 elklocs <- newdf[!(newdf$Date >= newdf$EndDate & newdf$Time > newdf$EndTime
                  | newdf$Date > newdf$EndDate),]
 

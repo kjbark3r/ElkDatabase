@@ -488,6 +488,10 @@ wtf140560 <- df140560[is.na(df140560$DateTime),]
 wtf140910 <- df140910[is.na(df140910$DateTime),]
 wtf141490 <- df141490[is.na(df141490$DateTime),]
 wtfiridium <- dfiridium[is.na(dfiridium$DateTime),]
+
+holyshitdidthatwork <- elklocs[is.na(elklocs$Date),]
+#yassssssssss
+
 #MOTHERFUCKING DAYLIGHT SAVINGS TIME
 
 #force R to use those DateTimes anyway?? Maybe diff format? 
