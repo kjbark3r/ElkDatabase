@@ -3,13 +3,20 @@
 #######  NSERP - Kristin Barker - May 2016  #######
 ###################################################
 
-##SET WD
+##SET WORKING DIRECTORY
+###GitHub repository on Work computer or personal laptop
+
 wd_workcomp <- "C:\\Users\\kristin.barker\\Documents\\GitHub\\NSERP_DB"
 wd_laptop <- "C:\\Users\\kjbark3r\\Documents\\GitHub\\NSERP_DB"
-if (file.exists(wd_workcomp)){
-  setwd("C:\\Users\\kristin.barker\\Documents\\GitHub\\NSERP_DB\\")
+
+if (file.exists(wd_workcomp)) {
+  setwd(wd_workcomp)
 } else {
-  setwd("C:\\Users\\kjbark3r\\Documents\\GitHub\\NSERP_DB\\")
+  if(file.exists(wd_laptop)) {
+    setwd(wd_laptop)
+  } else {
+      cat("Are you SURE you got that file path right?\n")
+  }
 }
 rm(wd_workcomp, wd_laptop)
 
@@ -19,7 +26,7 @@ library(tidyr)
 
 ##PREP DATA
 
-#collar locations
+#collar locations - format and combine
 df140560 <- read.delim("rawdata/140560-2204.txt", header = TRUE, sep = "\t")
   df140560$Date <- as.Date(df140560$Date, format = "%m/%d/%Y")
   df140560$Time <- as.character(df140560$Time)
@@ -39,17 +46,16 @@ dfiridium <- read.delim("rawdata/iridium-all.txt", header = TRUE, sep = "\t")
   dfiridium$TempC <- as.numeric(dfiridium$TempC)
   dfiridium$FixStatus <- as.character(dfiridium$FixStatus)
 alllocs <- as.data.frame(bind_rows(df140560, df140910, df141490, dfiridium))
-  alllocs <- subset(alllocs, select = -DateTime)
+  alllocs <- subset(alllocs, select = -DateTime) #avoid daylight savings NAs
  
-#capture information
-  #remove 3300s we have no data for
-  #note these data aren't perfectly classified (eg date/time)
+#transmission start information (capture dates/times)
+  #remove malfunctioned collars we have no data for
 allcap14 <- read.csv("rawdata/capture14.csv")
   cap14 <- allcap14[ ! allcap14$DeviceID %in% c(2496, 3521),]
 allcap15 <- read.csv("rawdata/capture15.csv", as.is = TRUE)
   cap15 <- allcap15[ ! allcap15$DeviceID %in% c(2496, 3521),]
 
-##transmission end information
+##transmission end information (mortality/malfunction/collar drop dates/times)
 transend <- read.csv("rawdata/transend.csv", as.is = TRUE)
   transend$EndDate <- as.Date(transend$EndDate, format = "%m/%d/%Y")
   transend <- transend[,c("DeviceID", "AnimalID", "EndDate", "EndTime", 
@@ -69,19 +75,20 @@ collarids <- arrange(collarids, DeviceID)
 cap14 <- arrange(cap14, DeviceID)
 cap15 <- arrange(cap15, DeviceID)
 
-#create blank df to store results in
+#create blank dataframe to store results of for loop in
 newdf <- data.frame(matrix(ncol = 9, nrow = 0)) #create df wo NAs
 colnames(newdf) <- c("DeviceID", "AnimalID", "Date", "Time", 
                      "Lat", "Long", "FixStatus", "DOP", "TempC")
 
 #assign animalid based on device id and capture year
+##because some collars were redeployed on new individuals in 2015 
 for(i in 1:nrow(collarids)){
   indiv <- collarids[i,] #treat each collarid as an individual
   id <- subset(alllocs, alllocs$DeviceID == indiv) #for each individual,
   id$AnimalID <- ifelse(id$Date < "2015-01-23",  #for locns b4 2015 capture,
                         cap14$AnimalID[i], cap15$AnimalID[i]) #animalid=2014
-  newdf <- as.data.frame(bind_rows(newdf, id)) #and add data to master df
-}                                              #df keeps all decimal places
+  newdf <- as.data.frame(bind_rows(newdf, id))  #after 2015 capture, id=2015
+}          #dataframe doesn't truncate lat/longs - keeps all decimal places
 
 #add sex and capture year
 newdf <- newdf %>%
@@ -96,14 +103,28 @@ newdf <- newdf[!(newdf$CaptureYr == 2015 & newdf$Date < "2015-01-24"),]
 
 #post-mortality or post-collar drop removal
 transend.sub <- subset(transend, select = -DeviceID) #remove duplicate column
-newdf <- as.data.frame(left_join(newdf, transend.sub, by = "AnimalID")) #add transend data
+newdf <- as.data.frame(left_join(newdf, transend.sub, by = "AnimalID")) #transend data
 
 elklocs <- newdf[!(newdf$Date >= newdf$EndDate & newdf$Time > newdf$EndTime
-                 | newdf$Date > newdf$EndDate),]
+                 | newdf$Date > newdf$EndDate),] #only keep locs b4 transend date/times
 
-#na removal
+
+##ADD MISC HELPFUL INFO####################################
+
+#season
+elklocs$Month <- as.numeric(format(as.POSIXlt(elklocs$Date), "%m"))
+elklocs$Season <- ifelse(between(elklocs$Month, 03, 05), "Spring", 
+                         ifelse(between(elklocs$Month, 06, 08), "Summer", 
+                                ifelse(between(elklocs$Month, 09, 11), "Fall", "Winter")
+                                 )
+                          )
+elklocs <- subset(elklocs, select = -Month)              
+
+##EXPORT DATA####################################
+
+#without location NAs
 elklocs.nona <- elklocs[!is.na(elklocs$Lat),]
 
 #export data
-write.csv(elklocs, file = "allcollardata.csv")
-write.csv(elklocs.nona, file = "collardata_locsonly.csv")
+write.csv(elklocs, file = "allcollardata-seasons.csv")
+write.csv(elklocs.nona, file = "collardata_locsonly-seasons.csv")
