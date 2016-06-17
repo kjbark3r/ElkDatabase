@@ -126,5 +126,5 @@ elklocs <- subset(elklocs, select = -Month)
 elklocs.nona <- elklocs[!is.na(elklocs$Lat),]
 
 #export data
-write.csv(elklocs, file = "allcollardata-seasons.csv")
-write.csv(elklocs.nona, file = "collardata_locsonly-seasons.csv")
+write.csv(elklocs, file = "allcollardata-seasons.csv", row.names = F)
+write.csv(elklocs.nona, file = "collardata_locsonly-seasons.csv", row.names = F)
