@@ -125,6 +125,18 @@ elklocs <- subset(elklocs, select = -Month)
 #without location NAs
 elklocs.nona <- elklocs[!is.na(elklocs$Lat),]
 
+#with odd hour locations removed from 3300s
+#to match bihourly locations from iridiums
+is.odd <- function(x) { x %% 2 == 1}
+
+elklocs.eq <- elklocs.nona 
+elklocs.eq$Hour <- as.POSIXlt(elklocs.eq$Time, format = "%H:%M")
+elklocs.eq <- subset(elklocs.eq, !(AnimalID == 140560 & is.odd(Hour$hour)) &
+                                 !(AnimalID == 140910 & is.odd(Hour$hour)) &
+                                 !(AnimalID == 141490 & is.odd(Hour$hour)))
+elklocs.eq <- subset(elklocs.eq, select = -Hour)
+  
 #export data
-write.csv(elklocs, file = "allcollardata-seasons.csv", row.names = F)
-write.csv(elklocs.nona, file = "collardata_locsonly-seasons.csv", row.names = F)
+write.csv(elklocs, file = "allcollardata-seasons.csv")
+write.csv(elklocs.nona, file = "collardata_locsonly-seasons.csv")
+write.csv(elklocs.eq, file = "collardata-locsonly-equalsampling.csv")
