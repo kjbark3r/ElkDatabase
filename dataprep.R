@@ -6,8 +6,8 @@
 ##SET WORKING DIRECTORY
 ###GitHub repository on Work computer or personal laptop
 
-wd_workcomp <- "C:\\Users\\kristin.barker\\Documents\\GitHub\\NSERP_DB"
-wd_laptop <- "C:\\Users\\kjbark3r\\Documents\\GitHub\\NSERP_DB"
+wd_workcomp <- "C:\\Users\\kristin.barker\\Documents\\GitHub\\ElkDatabase"
+wd_laptop <- "C:\\Users\\kjbark3r\\Documents\\GitHub\\ElkDatabase"
 
 if (file.exists(wd_workcomp)) {
   setwd(wd_workcomp)
@@ -113,12 +113,13 @@ elklocs <- newdf[!(newdf$Date >= newdf$EndDate & newdf$Time > newdf$EndTime
 
 #season
 elklocs$Month <- as.numeric(format(as.POSIXlt(elklocs$Date), "%m"))
-elklocs$Season <- ifelse(between(elklocs$Month, 03, 05), "Spring", 
-                         ifelse(between(elklocs$Month, 06, 08), "Summer", 
-                                ifelse(between(elklocs$Month, 09, 11), "Fall", "Winter")
-                                 )
-                          )
-elklocs <- subset(elklocs, select = -Month)              
+#elklocs$Season <- ifelse(between(elklocs$Month, 03, 05), "Spring", 
+#                         ifelse(between(elklocs$Month, 06, 08), "Summer", 
+#                                ifelse(between(elklocs$Month, 09, 11), "Fall", "Winter")
+#                                 )
+#                          )
+#elklocs <- subset(elklocs, select = -Month)              
+#reemoved season because may define season differently in different analyses
 
 ##EXPORT DATA####################################
 
@@ -137,6 +138,6 @@ elklocs.eq <- subset(elklocs.eq, !(AnimalID == 140560 & is.odd(Hour$hour)) &
 elklocs.eq <- subset(elklocs.eq, select = -Hour)
   
 #export data
-write.csv(elklocs, file = "allcollardata-seasons.csv")
-write.csv(elklocs.nona, file = "collardata_locsonly-seasons.csv")
-write.csv(elklocs.eq, file = "collardata-locsonly-equalsampling.csv")
+write.csv(elklocs, file = "allcollardata-seasons.csv", row.names = F)
+write.csv(elklocs.nona, file = "collardata_locsonly-seasons.csv", row.names = F)
+write.csv(elklocs.eq, file = "collardata-locsonly-equalsampling.csv", row.names = F)
