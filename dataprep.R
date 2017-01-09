@@ -108,26 +108,29 @@ newdf <- as.data.frame(left_join(newdf, transend.sub, by = "AnimalID")) #transen
 elklocs <- newdf[!(newdf$Date >= newdf$EndDate & newdf$Time > newdf$EndTime
                  | newdf$Date > newdf$EndDate),] #only keep locs b4 transend date/times
 
+elklocs <- newdf
+elklocs$DateTime <- as.POSIXct(paste(elklocs$Date, elklocs$Time, sep = " "), 
+                              format = "%Y-%m-%d %H:%M")
+elklocs$EndDateTime <- as.POSIXct(paste(elklocs$EndDate, elklocs$EndTime, sep = " "), 
+                              format = "%Y-%m-%d %H:%M")
+elklocs <- elklocs[(elklocs$DateTime <= elklocs$EndDateTime),]
 
-##ADD MISC HELPFUL INFO####################################
 
-#season
+##TWEAK DATA####################################
+
+#add month
 elklocs$Month <- as.numeric(format(as.POSIXlt(elklocs$Date), "%m"))
-#elklocs$Season <- ifelse(between(elklocs$Month, 03, 05), "Spring", 
-#                         ifelse(between(elklocs$Month, 06, 08), "Summer", 
-#                                ifelse(between(elklocs$Month, 09, 11), "Fall", "Winter")
-#                                 )
-#                          )
-#elklocs <- subset(elklocs, select = -Month)              
-#reemoved season because may define season differently in different analyses
 
-##EXPORT DATA####################################
+#remove extraneous columns
+elklocs <- select(elklocs, c(AnimalID, DeviceID, Date, Time, DateTime, Lat, Long, 
+                             FixStatus, DOP, TempC, Sex, CaptureYr))
 
-#without location NAs
+#remove location NAs
 elklocs.nona <- elklocs[!is.na(elklocs$Lat),]
 
-#with odd hour locations removed from 3300s
+#remove odd hour locations  from 3300s
 #to match bihourly locations from iridiums
+#(make sampling effort equal)
 is.odd <- function(x) { x %% 2 == 1}
 
 elklocs.eq <- elklocs.nona 
@@ -137,7 +140,7 @@ elklocs.eq <- subset(elklocs.eq, !(AnimalID == 140560 & is.odd(Hour$hour)) &
                                  !(AnimalID == 141490 & is.odd(Hour$hour)))
 elklocs.eq <- subset(elklocs.eq, select = -Hour)
   
-#export data
-write.csv(elklocs, file = "allcollardata-seasons.csv", row.names = F)
-write.csv(elklocs.nona, file = "collardata_locsonly-seasons.csv", row.names = F)
+##EXPORT DATA####################################
+write.csv(elklocs, file = "allcollardata-months.csv", row.names = F)
+write.csv(elklocs.nona, file = "collardata_locsonly-months.csv", row.names = F)
 write.csv(elklocs.eq, file = "collardata-locsonly-equalsampling.csv", row.names = F)

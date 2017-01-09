@@ -509,6 +509,45 @@ df140560$DateTime <- as.numeric(df140560$DateTime)
 test <- df140560[!(df140560$DateTime >= "02/20/2014 20:00"),] #line80
 #no. kill me.
 
+################
+#why tf did it keep some locs after the properly specified endtime?
+#anid 141300 - check some others
+ test <- elklocs.nona
+test <- subset(elklocs.nona, AnimalID == 141300)
+View(test)
+test <- subset(elklocs.nona, AnimalID == 151110)
+View(test)
+#feck.
+#endtime also 0800
+#try 1400 endtime
+test <- subset(elklocs.nona, AnimalID == 141110)
+View(test)
+#one additional loc
+#ok, something's up. . .
+
+#reran with slightly different code
+test <- subset(elklocs, AnimalID == 141300)
+View(test)
+
+#ok try removing extra points in stages
+testdf <- elklocs[!(newdf$Date > newdf$EndDate),] # first remove post-end dates
+testdf <- testdf[!(elklocs$Date >= elklocs$EndDate & elklocs$Time > elklocs$EndTime),]
+
+test <- subset(testdf, AnimalID == 141300)
+View(test)
+
+#ok i think i have to give in and use datetime
+testdf <- newdf
+testdf$DateTime <- as.POSIXct(paste(testdf$Date, testdf$Time, sep = " "), 
+                              format = "%Y-%m-%d %H:%M")
+testdf$EndDateTime <- as.POSIXct(paste(testdf$EndDate, testdf$EndTime, sep = " "), 
+                              format = "%Y-%m-%d %H:%M")
+testdf <- testdf[(testdf$DateTime <= testdf$EndDateTime),]
+
+#
+test <- subset(elklocs, AnimalID == 151110)
+View(test)
+                   
 ##############################
 ###GENERALLY HELPFUL STUFF####
 ##############################
